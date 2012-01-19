@@ -1,0 +1,143 @@
+uniform sampler2D	uColorMap;
+uniform sampler2D	uNormalMap;
+uniform sampler2D	uEffectsMap;
+uniform float		uTime;
+uniform bool		uNearlyDead;
+uniform bool		uHasHostileTarget;
+uniform float		uHullHeatLevel;
+uniform float		uLaserHeatLevel;
+uniform float		uEnginePower;
+uniform vec4		uPaintColor;	// Used with paintmask map to tint diffuse texture.
+
+varying vec2		vTexCoord;
+varying vec3		vEyeVector;		// Tangent space.
+varying vec3		vLight1Vector;	// Tangent space.
+
+// Constants
+const float			kSpecScale = 6.0;
+const float			kSpecExponent = 5.0;
+const vec3			kExhaustGlowColor = vec3(0.4, 1.4, 1.8);		// Cyan exhaust glow effect.
+const vec3			kExhaustMetalGlowColor = vec3(1.5, 0.55, 0.2);	// Red/Orange color heated metal effect.
+const vec3			kWeaponGlowColor = vec3(1.38, 0.35, 0.20);		// Heated weapon glow effect.
+const vec3			kPeacefulLampColor = vec3(0.9926, 0.9686, 0.7325);
+const vec3			kHostileLampColor = vec3(1.5, -0.4, -0.4);
+
+
+#ifndef OO_REDUCED_COMPLEXITY
+
+// Irregular flickering function.
+float Pulse(in float value, in float timeScale)
+{
+	float t = uTime * timeScale;   
+	
+	float s0 = t;
+	s0 -= floor(s0);
+	float sum = abs( s0 - 0.5);
+	
+	float s1 = t * 0.7 - 0.05;
+	s1 -= floor(s1);
+	sum += abs(s1 - 0.5) - 0.25;
+	
+	float s2 = t * 1.3 - 0.3;
+	s2 -= floor(s2);
+	sum += abs(s2 - 0.5) - 0.25;
+	
+	float s3 = t * 5.09 - 0.6;
+	s3 -= floor(s3);
+	sum += abs(s3 - 0.5) - 0.25;
+	
+	return (sum * 0.1 + 0.9) * value;
+}
+
+
+// Square wave with a 1-on, 3-off pattern (the 0.75 in the step function).
+float Blink(in float period)
+{
+	float sawtooth = fract(uTime / period);
+	return step(sawtooth, 0.75);
+}
+
+
+// Colour ramp from black through reddish brown/dark orange to yellow-white.
+vec3 TemperatureGlow(in float level)
+{
+	vec3 result;
+	result.r = level;
+	result.g = level * level * level;
+	result.b = max(level - 0.7, 0.0) * 2.0;
+	
+	return result;
+}
+
+#endif	// OO_REDUCED_COMPLEXITY
+
+
+void main()
+{
+	vec4 normalMapSample = texture2D(uNormalMap, vTexCoord);
+	vec4 colorMapSample = texture2D(uColorMap, vTexCoord);
+	vec4 effectsMap = texture2D(uEffectsMap, vTexCoord);
+	
+	vec3 eyeVector = normalize(vEyeVector);
+	vec3 normal = normalize(normalMapSample.rgb - 0.5);
+	
+	vec3 lightVector = normalize(vLight1Vector);
+	vec3 lightColor = gl_LightSource[0].diffuse.rgb;
+	
+	// Mix texture colour with paint tint.
+	vec3 colorMap = colorMapSample.rgb;
+	colorMap += uPaintColor.rgb * normalMapSample.a;
+	
+	vec3 diffuseIntensity = max(dot(normal, lightVector), 0.0) + gl_LightModel.ambient.rgb;
+	
+	float specularMap = colorMapSample.a * kSpecScale;
+	vec3 reflection = -reflect(lightVector, normal);
+	float specularIntensity = specularMap * pow(max(dot(reflection, eyeVector), 0.0), kSpecExponent);
+	
+	vec3 color = colorMap * lightColor * (diffuseIntensity + specularIntensity);
+	
+	vec3 lampColor = kPeacefulLampColor;
+	
+#ifndef OO_REDUCED_COMPLEXITY
+	// Varying glow effects only available in full shader mode.
+	
+	// check if ship is hostile, adjust lampColor accordingly.
+	if (uHasHostileTarget)
+	{
+		lampColor = kHostileLampColor * max(fract(uTime) * 2.0, 0.5);
+	}
+	
+	// Add the hull lights glow effects, check if ship is throwing sparks, if so flicker the effects.
+	float exhaustMetalGlowMap	= effectsMap.r;
+	float weaponGlowMap			= effectsMap.g;
+	float exhaustGlowMap		= effectsMap.b;
+	float lampGlowMap			= effectsMap.a;
+
+	if (!uNearlyDead)
+	{
+		color += kExhaustGlowColor * exhaustGlowMap * Pulse(min(uEnginePower, 1.0), 1.0);
+		color += lampColor * lampGlowMap * Pulse(1.0, 0.3);
+	}
+	else
+	{
+		color += kExhaustGlowColor * exhaustGlowMap * Pulse(min(uEnginePower, 1.0), 1.0) * Blink(Pulse(1.0, 4.5)) * 2.0;
+		color += lampColor * lampGlowMap * Blink(Pulse(1.0, 0.625));
+	}
+	
+	// Add in the red heated metal glow around the exhaust.
+	color += kExhaustMetalGlowColor * exhaustMetalGlowMap * Pulse(min(uEnginePower, 1.0), 1.0);
+	
+	//Add in the laser firing gun barrel flash effect.
+	color += kWeaponGlowColor * weaponGlowMap * Pulse(min(uLaserHeatLevel, 1.0), 1.0);
+	
+	// Add the all over hull temperature glow.
+	float hullHeat = max(uHullHeatLevel - 0.5, 0.0) * 2.0;
+	hullHeat = Pulse(hullHeat * hullHeat, 0.1);
+	color += TemperatureGlow(hullHeat);
+#else
+	// Add in hull lights for simple shader mode.
+	color += lampColor * effectsMap.a;
+#endif
+	
+	gl_FragColor = vec4(color, 1.0);
+}
