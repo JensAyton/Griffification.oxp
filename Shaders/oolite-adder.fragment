@@ -78,11 +78,14 @@ float Pulse(in float value, in float timeScale)
 }
 
 
-// Square wave with a 1-on, 3-off pattern (the 0.75 in the step function).
+// Square wave with 1-on, 2-off pattern.
 float Blink(in float period)
 {
-	float sawtooth = fract(uTime / period);
-	return step(sawtooth, 0.75);
+	const float kThreshold = 2.0 / 3.0;
+	const float kPeriodScale = 0.1591549430919; // 1/2π, used because this was once sine wave-based.
+	
+	float sawtooth = fract(period * uTime * 0.1591549430919);
+	return step(kThreshold, sawtooth);
 }
 
 
@@ -255,8 +258,8 @@ void main()
 	}
 	else
 	{
-		color += kExhaustGlowColor * exhaustGlowMap * Pulse(min(uEnginePower, 1.0), 1.0) * Blink(Pulse(1.0, 4.5)) * 2.0;
-		color += lampColor * lampGlowMap * Blink(Pulse(1.0, 0.625));
+		color += kExhaustGlowColor * exhaustGlowMap * Pulse(min(uEnginePower, 1.0), 1.0) * Blink(Pulse(1.0, 0.7)) * 2.0;
+		color += lampColor * lampGlowMap * Blink(Pulse(1.0, 1.0));
 	}
 	
 	// Add in the red heated metal glow around the exhaust.
