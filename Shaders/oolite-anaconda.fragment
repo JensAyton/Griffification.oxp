@@ -1,0 +1,273 @@
+/*
+
+oolite-anaconda.fragment
+
+Fragment shader for Griff Anaconda.
+
+
+Oolite
+Copyright © 2004–2012 Giles C Williams and contributors.
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+MA 02110-1301, USA.
+
+*/
+
+
+uniform sampler2D	uColorMap;
+uniform sampler2D	uNormalMap;
+uniform sampler2D	uEffectsMap;
+uniform float		uTime;
+uniform bool		uNearlyDead;
+uniform bool		uHasHostileTarget;
+uniform float		uHullHeatLevel;
+uniform vec4		uPaintColor;	// Used with paintmask map to tint diffuse texture.
+uniform float		uBlinkRate;
+
+varying vec2		vTexCoord;
+varying vec3		vEyeVector;		// Tangent space.
+varying vec3		vLight1Vector;	// Tangent space.
+
+const float			kSpecularScale = 8.0;
+const float			kSpecularExponent = 5.0;
+
+const vec3			kPeacefulLampColor = vec3(0.6683, 0.7852, 0.6012);
+const vec3			kHostileLampColor = vec3(1.0, 0.1, 0.0);
+const vec3			kPeacefulAnimatedLampColor = vec3(1.0, 0.8660, 0.3348);
+const vec3			kHostileAnimatedLampColor = vec3(1.0, 0.1, 0.0);
+
+
+#ifndef OO_REDUCED_COMPLEXITY
+
+// Irregular flickering function.
+float Pulse(in float value, in float timeScale)
+{
+	float t = uTime * timeScale;   
+	
+	float s0 = t;
+	s0 -= floor(s0);
+	float sum = abs( s0 - 0.5);
+	
+	float s1 = t * 0.7 - 0.05;
+	s1 -= floor(s1);
+	sum += abs(s1 - 0.5) - 0.25;
+	
+	float s2 = t * 1.3 - 0.3;
+	s2 -= floor(s2);
+	sum += abs(s2 - 0.5) - 0.25;
+	
+	float s3 = t * 5.09 - 0.6;
+	s3 -= floor(s3);
+	sum += abs(s3 - 0.5) - 0.25;
+	
+	return (sum * 0.1 + 0.9) * value;
+}
+
+
+// Square wave with 1-on, 2-off pattern.
+float Blink(in float period)
+{
+	const float kThreshold = 2.0 / 3.0;
+	const float kPeriodScale = 0.1591549430919; // 1/2π, used because this was once sine wave-based.
+	
+	float sawtooth = fract(period * uTime * 0.1591549430919);
+	return step(kThreshold, sawtooth);
+}
+
+
+// Colour ramp from black through reddish brown/dark orange to yellow-white.
+vec3 TemperatureGlow(in float level)
+{
+	vec3 result;
+	result.r = level;
+	result.g = level * level * level;
+	result.b = max(level - 0.7, 0.0) * 2.0;
+	
+	return result;
+}
+
+#endif	// OO_REDUCED_COMPLEXITY
+
+
+void main()
+{
+	/*
+		Sample our texture maps.
+		
+		uColorMap contains the base colour of the ship in the RGB channels, and
+		the tint map in the A channel. The tint map is used to determine which
+		areas are repainted using uPaintColor (a random vector set up in
+		shipdata.plist). The tinting adds the random vector, which may have
+		negative components, to the value from the colur map. In the areas that
+		are tinted, the colour map is roughty equal to the tint map modulated
+		by the base colour. (The base colour is used as-is when shaders are
+		disabled.)
+		The B channel is also used as the specular intensity map.
+			
+		uNormalMap contains a normal map in its RGB channels, and a light map
+		in its A channel.
+		
+		uEffectsMap contains a second, animated light map in its A channel.
+		The other channels are used by the engine and weapon shaders.
+	*/
+	vec4 colorMapSample = texture2D(uColorMap, vTexCoord);
+	vec4 normalMapSample = texture2D(uNormalMap, vTexCoord);
+	vec4 effectsMapSample = texture2D(uEffectsMap, vTexCoord);
+	
+	vec3 colorMap = colorMapSample.rgb;
+	colorMap += uPaintColor.rgb * colorMapSample.a;
+	
+	/*
+		vEyeVector, provided by the vertex shader, is a vector from the point
+		we’re shading to the camera in tangent space (a coordinate system
+		relative to the part of the surface of the ship that we’re working on).
+		While vEyeVector can be of any length, eyeVector is normalized to a
+		length of 1 and represents the direction to the camera.
+			
+		The normal defines the direction straight outward from the surface,
+		which is important in determining lighting. Without normal mapping,
+		it is by definition vec3(0.0, 0.0, 1.0) in tangent space. By looking
+		up a distorted normal from a texture, we can represent more surface
+		detail without having to add large numbers of polygons.
+	*/
+	vec3 eyeVector = normalize(vEyeVector);
+	vec3 normal = normalize(normalMapSample.rgb - 0.5);
+	
+	/*
+		lightVector represents the direction to the light source (normall the
+		sun, or the “showroom light” on the demo screen, shipyard or mission
+		screen). lightColor is the colour of the light – contrary to common
+		belief, sunlight is coloured in Oolite.
+	*/
+	vec3 lightVector = normalize(vLight1Vector);
+	vec3 lightColor = gl_LightSource[0].diffuse.rgb;
+	
+	/*
+		Calculate diffuse light intensity.
+		
+		Diffuse light is the light cast on a matte surface, such as a ping-pong
+		ball. In the Lambertian shading model, this is approximated as the
+		cosine of the angle between the surface normal and the direction to
+		the light source (rounded up to 0 for the dark side).
+		
+		In vector geometry, the dot product of two vectors u and v has the
+		property u · v = |u| |v| cos α, where |v| is the length of v and α is
+		the angle between the two vectors. Since normal and lightVector are
+		both known to have length 1, normal · lightVector = cos α.
+	*/
+	float diffuseIntensity = max(dot(normal, lightVector), 0.0);
+	
+	/*
+		Calculate specular light intensity.
+		
+		Specular lighting consists of the reflections of objects, especially
+		light sources, that give an object a shiny appearance. In the
+		Blinn-Phong shading model, it is approximated with a bright patch whose
+		position depends on both the direction to the light and the direction
+		to the camera. The “sharpness” of the patch is determined by a parameter
+		called the specular exponent – in this case the constant
+		kSpecularExponent – and the intensity can be scaled – in this case, by
+		the specular map and the adjustment constant kSpecularScale.
+		
+		The specular map serves two purposes. First, by making some parts of
+		the hull shinier than others, it suggests different materials. Second,
+		by dimming areas that are in shadow, such as the bottom of creases, it
+		avoids very bright reflections in areas that you wouldn’t expect to be
+		reached by much light. This type of directionless shadowing of obscured
+		areas is known as “ambient occlusion”.
+		
+		Further along, this specular intensity will be scaled by the ship’s
+		colour map. “Self-coloured” reflections are characteristic of coloured
+		metals, including both natural ones like gold and artificial ones like
+		dyed anodized aluminium. Glass, plastic and varnished surfaces
+		generally have uncoloured specular reflections.
+		
+		With Griff’s textures, the colour mapping of the specular intesity has
+		the effect of applying ambient occlusion twice. This isn’t very
+		noticeable even if you’re looing for it.
+		
+		The reflection vector is negated because the light vector points from
+		the surface towards the light, rather than the other way around as is
+		conventional in Blinn-Phong shading. This is a historical mistake in
+		Oolite’s standard vertex shader.
+	*/
+	float specularMap = colorMapSample.b * kSpecularScale;
+	vec3 reflection = -reflect(lightVector, normal);
+	float specularIntensity = specularMap * pow(max(dot(reflection, eyeVector), 0.0), kSpecularExponent);
+	
+	/*
+		Combine and colour the incoming light values.
+		
+		In addition to the diffuse and specular intensity terms above, we add
+		an ambient light term. This is an approximation of all incoming light
+		from sources other than the main light source. In space, Oolite
+		calculates this based on star an nebula colours as well as the colour
+		of the sun.
+	*/
+	vec3 light = lightColor * (diffuseIntensity + specularIntensity) + gl_LightModel.ambient.rgb;
+	vec3 color = colorMap * light;
+	
+#ifndef OO_REDUCED_COMPLEXITY
+	/*
+		Varying glow effects only used in full shader mode.
+		
+		The general theme here is that we decide what colour we want a
+		particular glow effect to be, multiply by the relevant effect map
+		channel to determine which parts of the ship it is applied to, then
+		add it to the color variable. Since we don’t take incoming light into
+		account, the effects are visible even on dark parts of the ship and
+		hence glowy.
+	*/
+	
+	// Variables for the effect channels.
+	float lampGlowMap			= normalMapSample.a;
+	float animatedlightMap		= effectsMapSample.a;
+	
+	// Choose lamp colour based on whether we’re in combat.
+	vec3 lampColor, animatedLampColor;
+	if (!uHasHostileTarget)
+	{
+		lampColor = kPeacefulLampColor;
+		animatedLampColor = kPeacefulAnimatedLampColor;
+	}
+	else
+	{
+		lampColor = kHostileLampColor * max(fract(uTime) * 2.0, 0.5);
+		animatedLampColor = kHostileAnimatedLampColor;
+	}
+	
+	// Add the hull lights glow effects, check if ship is throwing sparks, if so flicker the effects.
+	if (!uNearlyDead)
+	{
+		color += lampColor * lampGlowMap * 2.5 * Pulse(1.0, 0.3);
+		color += animatedlightMap * animatedLampColor * Blink(4.0 + uBlinkRate);
+	}
+	else
+	{
+		color += lampColor * lampGlowMap * Blink(Pulse(1.0, 0.625));
+		color += animatedlightMap * animatedLampColor * Blink(2.0) * Blink(Pulse(1.0, 4.0));
+	}
+	
+	// Add the all over hull temperature glow.
+	float hullHeat = max(uHullHeatLevel - 0.5, 0.0) * 2.0;
+	hullHeat = Pulse(hullHeat * hullHeat, 0.1);
+	color += TemperatureGlow(hullHeat);
+#else
+	// Add in hull lights for simple shader mode.
+	color += kPeacefulLampColor * normalMapSample.a;
+#endif
+	
+	gl_FragColor = vec4(color, 1.0);
+}

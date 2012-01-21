@@ -41,7 +41,7 @@
                 textures =
 				(
 					"oolite-adder-diffuse.png",
-					"oolite-adder-normalmap.png",
+					"oolite-adder-normal.png",
 					"oolite-adder-effects.png",
 				);
 				uniforms =
@@ -50,13 +50,13 @@
 					uNormalMap			= { type = texture; value = 1; };
 					uEffectsMap			= { type = texture; value = 2; };
 					uTime				= "timeElapsedSinceSpawn";
-					uNearlyDead			= "throwingSparks";	
-					uHasHostileTarget	= "hasHostileTarget";						
+					uNearlyDead			= "throwingSparks";
+					uHasHostileTarget	= "hasHostileTarget";
 					uHullHeatLevel		= "hullHeatLevel";
-					uLaserHeatLevel		= "laserHeatLevel"; 				
+					uLaserHeatLevel		= "laserHeatLevel";
 					uEnginePower		= "speedFactor";
 					uPaintColor			= { type = "randomUnitVector"; scale = 0.25; };
-				}; 	
+				};
 			};
 		};
 	};
@@ -139,6 +139,7 @@
 			}
 		);
 	};
+	
 	"alloy" =
 	{
 		ai_type = "dumbAI.plist";
@@ -166,9 +167,10 @@
 			};
 		};
 	};
+	
 	"anaconda" =
 	{
-		aft_eject_position = "0.0 -20.0 -67.0";
+		aft_eject_position = "0.0 -24.0 -76.0";
 		aft_weapon_type = "WEAPON_PULSE_LASER";
 		ai_type = "route1traderAI.plist";
 		auto_ai = yes;
@@ -176,8 +178,14 @@
 		energy_recharge_rate = 3;
 		escort_ship = "cobramk1";
 		escorts = 6;
-		exhaust = ("-9.8 5.6 -78.5 10.0 10.0 8.0", "9.8 5.6 -78.5 10.0 10.0 8.0");
-		forward_weapon_type = "WEAPON_PULSE_LASER";
+		exhaust =
+		(
+			"-0.01222 19.1713  -77.0  3.2 3.0 0.5",
+			"-0.01222  9.04264 -78.0  1.6 2.2 0.5",
+			"-0.01222 -1.17115 -78.0  1.6 2.2 0.5"
+		);
+		forward_weapon_type = "WEAPON_NONE";	// Gun is a subentity.
+		frangible = false;
 		fuel = 70;
 		has_ecm = 0.95;
 		has_escape_pod = 0.95;
@@ -188,113 +196,235 @@
 		max_flight_pitch = 0.4;
 		max_flight_roll = 0.75;
 		max_flight_speed = 140;
-		missile_launch_position = "0.0 -9.0 60.0";
+		missile_launch_position = "0.0 -11.2 71.0";
 		missiles = 7;
-		model = "anaconda_redux.dat";
+		max_missiles = 7;
+		model = "oolite-anaconda.dat";
 		name = "Anaconda";
-		roles = "trader";
-		scoop_position = "0.0 -30.0 -60";
+		roles = "trader anaconda";
+		scoop_position = "0.0 -12.2 65.3462";
 		thrust = 14;
-		weapon_position_aft = "0.0 0.0 -85.0";
-		weapon_position_forward = "0.0 -4.0 85.0";
-		weapon_position_port = "-37.5 -4.0 -40.0";
-		weapon_position_starboard = "37.5 -4.0 -40.0";
+		weapon_position_forward = "0.0 -4.605745 73.9699";
+		weapon_position_aft = "0.0 13.111841 -78.506901";
+		weapon_position_port = "-26.255348 9.75 -31.565586";
+		weapon_position_starboard = "26.255348 9.75 -31.565586";
+		
+		subentities =
+		(
+			{
+				subentity_key = "oolite-anaconda-engine";
+			},
+			{
+				subentity_key = "oolite-anaconda-gun";
+				position = (0, -4.6514, 73.9893);
+			}
+		);
+		
+		materials =
+		{
+			"oolite-anaconda-diffuse.png" =
+			{
+				// Non-shader material.
+				diffuse_map = "oolite-anaconda-diffuse.png";
+				specular_color = (0.2, 0.2, 0.2);
+				shininess = 5;
+				emission_map = { name = "griff_anaconda_normal.png"; extract_channel = "a"; };
+				emission_modulate_color = (0.9926, 0.9686, 0.7325);
+				
+				// Shader material.
+				vertex_shader = "oolite-tangent-space-vertex.vertex";
+				fragment_shader = "oolite-anaconda.fragment";
+				textures =
+				(
+					"oolite-anaconda-diffuse.png",
+					"oolite-anaconda-normal.png",
+					"oolite-anaconda-effects.png"
+				);
+				uniforms =
+				{
+					uColorMap			= { type = texture; value = 0; };
+					uNormalMap			= { type = texture; value = 1; };
+					uEffectsMap			= { type = texture; value = 2; };
+					uTime				= "timeElapsedSinceSpawn";
+					uNearlyDead			= "throwingSparks";
+					uHasHostileTarget	= "hasHostileTarget";
+					uHullHeatLevel		= "hullHeatLevel";
+					uPaintColor			= { type = "randomUnitVector"; scale = 0.25; };
+					uBlinkRate			= "entityPersonality";
+				};
+			};
+		};
 	};
 	"anaconda-player" =
 	{
-		aft_eject_position = "0.0 -20.0 -67.0";
+		like_ship = "anaconda";
 		energy_recharge_rate = 3;
-		exhaust = ("-9.8 5.6 -78.5 10.0 10.0 8.0", "9.8 5.6 -78.5 10.0 10.0 8.0");
 		forward_weapon_type = "WEAPON_PULSE_LASER";
-		hud = "hud.plist";
-		max_cargo = 750;
-		max_energy = 500;
-		max_flight_pitch = 0.4;
-		max_flight_roll = 0.75;
-		max_flight_speed = 140;
-		max_missiles = 7;
 		missile_launch_position = "0.0 -9.0 60.0";
 		missiles = 3;
-		model = "anaconda_redux.dat";
-		name = "Anaconda";
 		roles = "player";
-		scoop_position = "0.0 -30.0 -60";
-		thrust = 14;
-		view_position_aft = "0.0 -4.0 -80.0";
-		view_position_forward = "0.0 -0.5 70.0";
-		view_position_port = "-2.15 -0.5 70.0";
-		view_position_starboard = "2.15 -0.5 70.0";
-		weapon_position_aft = "0.0 0.0 -85.0";
-		weapon_position_forward = "0.0 -4.0 85.0";
-		weapon_position_port = "-37.5 -4.0 -40.0";
-		weapon_position_starboard = "37.5 -4.0 -40.0";
+		view_position_aft = "0.0 14.038046 -81.618951";
+		view_position_forward = "0.0 -1.8 79.344";
+		view_position_port = "-26.255348 11.415907 -32.565386";
+		view_position_starboard = "26.255348 11.415907 -32.565386";
+		
+		subentities =
+		(
+			{
+				subentity_key = "oolite-anaconda-engine-player";
+			},
+			{
+				subentity_key = "oolite-anaconda-gun-player";
+				position = (0, -4.6514, 73.9893);
+			}
+		);
+		
 		custom_views =
 		(
 			{
 				view_description = "Rear View";
 				view_orientation = "1.0 0.0 0.0 0.0";
-				view_position = "0.0 30.0 -200.0";
+				view_position = "0.0 15.0 -350.0";
 				weapon_facing = "FORWARD";
 			},
 			{
 				view_description = "Rear Right View";
 				view_orientation = "0.9239 0.0 0.3827 0.0";
-				view_position = "141.42 30.0 -141.42";
+				view_position = "247.4874 15.0 -247.4874";
 				weapon_facing = "FORWARD";
 			},
 			{
 				view_description = "Right View";
 				view_orientation = "0.7071 0.0 0.7071 0.0";
-				view_position = "200.0 30.0 0.0";
+				view_position = "350.0 15.0 0.0";
 				weapon_facing = "FORWARD";
 			},
 			{
 				view_description = "Front Right View";
 				view_orientation = "0.3827 0.0 0.9239 0.0";
-				view_position = "141.42 30.0 141.42";
+				view_position = "247.4874 15.0 247.4874";
 				weapon_facing = "FORWARD";
 			},
 			{
 				view_description = "Front View";
 				view_orientation = "0.0 0.0 1.0 0.0";
-				view_position = "0.0 30.0 200.0";
+				view_position = "0.0 15.0 350.0";
 				weapon_facing = "FORWARD";
 			},
 			{
 				view_description = "Front Left View";
 				view_orientation = "0.3827 0.0 -0.9239 0.0";
-				view_position = "-141.42 30.0 141.42";
+				view_position = "-247.4874 15.0 247.4874";
 				weapon_facing = "FORWARD";
 			},
 			{
 				view_description = "Left View";
 				view_orientation = "0.7071 0.0 -0.7071 0.0";
-				view_position = "-200.0 30.0 0.0";
+				view_position = "-350.0 15.0 0.0";
 				weapon_facing = "FORWARD";
 			},
 			{
 				view_description = "Rear Left View";
 				view_orientation = "0.9239 0.0 -0.3827 0.0";
-				view_position = "-141.42 30.0 -141.42";
+				view_position = "-247.4874 15.0 -247.4874";
 				weapon_facing = "FORWARD";
 			},
 			{
 				view_description = "Top View";
 				view_orientation = "-0.7071 0.7071 0.0 0.0";
-				view_position = "0.0 300.0 -22.0";
+				view_position = "0.0 400.0 0.0";
 				weapon_facing = "FORWARD";
 			},
 			{
 				view_description = "Bottom View";
 				view_orientation = "0.0 0.0 0.7071 0.7071";
-				view_position = "0.0 -300.0 -22.0";
+				view_position = "0.0 -400.0 0.0";
 				weapon_facing = "FORWARD";
 			}
 		);
 	};
+	"oolite-anaconda-engine" =
+	{
+		model = "oolite-anaconda-engine.dat";
+		name = "Anaconda";
+		roles = "oolite-anaconda-engine";
+		
+		materials =
+		{
+			"oolite-anaconda-engine-gun-diffuse.png" =
+			{
+				// Non-shader material.
+				diffuse_map = "oolite-anaconda-engine-gun-diffuse.png";
+				specular_color = (0.2, 0.2, 0.2);
+				shininess = 15;
+				
+				// Shader material.
+				vertex_shader = "oolite-tangent-space-vertex.vertex";
+				fragment_shader = "oolite-anaconda-engine.fragment";
+				textures =
+				(
+					"oolite-anaconda-engine-gun-diffuse.png",
+					"oolite-anaconda-engine-gun-normal.png",
+					"oolite-anaconda-effects.png"
+				);
+				uniforms =
+				{
+					uColorMap			= { type = texture; value = 0; };
+					uNormalMap			= { type = texture; value = 1; };
+					uEffectsMap			= { type = texture; value = 2; };
+					uTime				= "timeElapsedSinceSpawn";
+					uNearlyDead			= "throwingSparks";
+					uHullHeatLevel		= "hullHeatLevel";
+					uEnginePower		= "speedFactor";
+				}; 
+			};
+		};
+	};
+	"oolite-anaconda-gun" =
+	{
+		forward_weapon_type = "WEAPON_PULSE_LASER";
+		model = "oolite-anaconda-gun.dat";
+		name = "Anaconda";
+		roles = "oolite-anaconda-gun";
+		weapon_position_forward = "0.0 -4.605745 73.9699";
+		
+		materials =
+		{
+			"oolite-anaconda-engine-gun-diffuse.png" =
+			{
+				diffuse_map = "oolite-anaconda-engine-gun-diffuse.png";
+				specular_color = (0.2, 0.2, 0.2);
+				shininess = 15;
+			};
+				
+				// Shader material.
+				vertex_shader = "oolite-tangent-space-vertex.vertex";
+				fragment_shader = "oolite-anaconda-gun.fragment";
+				textures =
+				(
+					"oolite-anaconda-engine-gun-diffuse.png",
+					"oolite-anaconda-engine-gun-normal.png",
+					"oolite-anaconda-effects.png"
+				);
+				uniforms =
+				{
+					uColorMap			= { type = texture; value = 0; };
+					uNormalMap			= { type = texture; value = 1; };
+					uEffectsMap			= { type = texture; value = 2; };
+					uTime				= "timeElapsedSinceSpawn";
+					uHullHeatLevel		= "hullHeatLevel";
+					uLaserHeatLevel		= "laserHeatLevel";
+				};
+		};
+	};
+	"oolite-anaconda-gun-player" =
+	{
+		like_ship = "oolite-anaconda-gun";
+		forward_weapon_type = "WEAPON_NONE";	// Gun can’t be in subentity for player.
+	};
+	
 	"arc-detail" =
 	{
-		ai_type = "nullAI.plist";
 		model = "arcdetail.dat";
 		name = "Arc Detail";
 		roles = "arc-detail";
