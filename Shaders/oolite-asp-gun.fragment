@@ -1,0 +1,133 @@
+/*
+
+oolite-asp-gun.fragment
+
+Fragment shader for Griff Asp Mark II gun.
+
+
+Oolite
+Copyright © 2004–2012 Giles C Williams and contributors.
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+MA 02110-1301, USA.
+
+*/
+
+
+uniform sampler2D	uColorMap;
+uniform sampler2D	uNormalMap;
+uniform float		uTime;
+uniform float		uHullHeatLevel;
+uniform float		uLaserHeatLevel;
+
+varying vec2		vTexCoord;
+varying vec3		vEyeVector;		// Tangent space.
+varying vec3		vLight1Vector;	// Tangent space.
+
+const float			kSpecularScale = 3.0;
+const float			kSpecularExponent = 12.0;
+
+const vec3			kWeaponGlowColor = vec3(1.38, 0.35, 0.20);		// Heated weapon glow effect.
+
+
+#ifndef OO_REDUCED_COMPLEXITY
+
+// Irregular flickering function.
+float Pulse(in float value, in float timeScale)
+{
+	float t = uTime * timeScale;   
+	
+	float s0 = t;
+	s0 -= floor(s0);
+	float sum = abs( s0 - 0.5);
+	
+	float s1 = t * 0.7 - 0.05;
+	s1 -= floor(s1);
+	sum += abs(s1 - 0.5) - 0.25;
+	
+	float s2 = t * 1.3 - 0.3;
+	s2 -= floor(s2);
+	sum += abs(s2 - 0.5) - 0.25;
+	
+	float s3 = t * 5.09 - 0.6;
+	s3 -= floor(s3);
+	sum += abs(s3 - 0.5) - 0.25;
+	
+	return (sum * 0.1 + 0.9) * value;
+}
+
+
+// Square wave with 1-on, 2-off pattern.
+float Blink(in float period)
+{
+	const float kThreshold = 2.0 / 3.0;
+	const float kPeriodScale = 0.1591549430919; // 1/2π, used because this was once sine wave-based.
+	
+	float sawtooth = fract(period * uTime * 0.1591549430919);
+	return step(kThreshold, sawtooth);
+}
+
+
+// Colour ramp from black through reddish brown/dark orange to yellow-white.
+vec3 TemperatureGlow(in float level)
+{
+	vec3 result;
+	result.r = level;
+	result.g = level * level * level;
+	result.b = max(level - 0.7, 0.0) * 2.0;
+	
+	return result;
+}
+
+#endif	// OO_REDUCED_COMPLEXITY
+
+
+void main()
+{
+	vec4 colorMapSample = texture2D(uColorMap, vTexCoord);
+	vec4 normalMapSample = texture2D(uNormalMap, vTexCoord);
+	
+	vec3 colorMap = colorMapSample.rgb;
+	
+	vec3 eyeVector = normalize(vEyeVector);
+	vec3 normal = normalize(normalMapSample.rgb - 0.5);
+	
+	vec3 lightVector = normalize(vLight1Vector);
+	vec3 lightColor = gl_LightSource[0].diffuse.rgb;
+	
+	float diffuseIntensity = max(dot(normal, lightVector), 0.0);
+	
+	float specularMap = normalMapSample.a * kSpecularScale;
+	vec3 reflection = -reflect(lightVector, normal);
+	float specularIntensity = specularMap * pow(max(dot(reflection, eyeVector), 0.0), kSpecularExponent);
+	
+	vec3 light = lightColor * (diffuseIntensity + specularIntensity) + gl_LightModel.ambient.rgb;
+	vec3 color = colorMap * light;
+	
+#ifndef OO_REDUCED_COMPLEXITY
+	// Variables for the various effect map channels.
+	float weaponGlowMap			= colorMapSample.g;
+		
+	//Add in the laser firing gun barrel flash effect.
+	color += kWeaponGlowColor * weaponGlowMap * Pulse(min(uLaserHeatLevel, 1.0), 1.0);
+	
+	// Add the all over hull temperature glow.
+	float hullHeat = max(uHullHeatLevel - 0.5, 0.0) * 2.0;
+	hullHeat = Pulse(hullHeat * hullHeat, 0.1);
+	color += TemperatureGlow(hullHeat);
+#endif
+	
+	gl_FragColor = vec4(color, 1.0);
+}

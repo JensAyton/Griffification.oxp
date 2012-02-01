@@ -1,4 +1,5 @@
 {
+	/**** Adder ****/
 	"adder" =
 	{
 		aft_eject_position = "0.0 -4.5 -23.0";
@@ -140,6 +141,7 @@
 		);
 	};
 	
+	/**** Metal fragment ****/
 	"alloy" =
 	{
 		ai_type = "dumbAI.plist";
@@ -168,6 +170,7 @@
 		};
 	};
 	
+	/**** Anaconda ****/
 	"anaconda" =
 	{
 		aft_eject_position = "0.0 -24.0 -76.0";
@@ -423,22 +426,15 @@
 		forward_weapon_type = "WEAPON_NONE";	// Gun can’t be in subentity for player.
 	};
 	
-	"arc-detail" =
-	{
-		model = "arcdetail.dat";
-		name = "Arc Detail";
-		roles = "arc-detail";
-		smooth = yes;
-	};
+	/**** Asp Mark II ****/
 	"asp" =
 	{
-		aft_eject_position = "0.0 -8.0 -21.5";
+		aft_eject_position = "0.0 -10.0 -45.0";
 		ai_type = "pirateAI.plist";
 		auto_ai = yes;
 		cargo_type = "CARGO_NOT_CARGO";
 		energy_recharge_rate = 4;
-		exhaust = ("0.0 0.0 -35.0 8.0 6.0 8.0");
-		forward_weapon_type = "WEAPON_BEAM_LASER";
+		exhaust = ("0.0 -1.185465 -35.0 5.8 3.0 5.0");
 		fuel = 70;
 		has_ecm = 0.85;
 		has_fuel_injection = 0.5;
@@ -450,18 +446,59 @@
 		max_flight_pitch = 1;
 		max_flight_roll = 2;
 		max_flight_speed = 400;
-		missile_launch_position = "0.0 -5.9 17.5";
+		max_missiles = 1;
+		missile_launch_position = "0.0 -8.32 30.0";
 		missiles = 1;
-		model = "asp_redux.dat";
+		model = "oolite-asp.dat";
 		name = "Asp Mark II";
 		roles = "hunter pirate asp-pirate";
-		scoop_position = "0.0 -5.0 -15";
-		smooth = yes;
+		scoop_position = "0.0 -6.22 17.48";
 		thrust = 50;
-		weapon_position_aft = "0.0 -5.0 -35.0";
-		weapon_position_forward = "0.0 0.0 22.5";
-		weapon_position_port = "-32.5 0.0 -7.0";
-		weapon_position_starboard = "32.5 0.0 -7.0";
+		weapon_position_aft = "0.0 3.08154 -39.5811";
+		
+		subentities =
+		(
+			{
+				subentity_key = "oolite-asp-gun";
+				position = (0.0, -2.2644, 42.1456);
+			}
+		);
+		
+		materials =
+		{
+			"mainhull" =
+			{
+				// Non-shader material.
+				diffuse_map = "oolite-asp-diffuse.png";
+				specular_color = (0.4, 0.41, 0.39);
+				shininess = 9;
+				emission_map = { name = "oolite-asp-effects.png"; extract_channel = "g"; };
+				emission_modulate_color = (1.0000, 0.9732, 0.7658);
+				
+				// Shader material.
+				vertex_shader = "oolite-tangent-space-vertex.vertex";
+				fragment_shader = "oolite-asp.fragment";
+				textures =
+				(
+					"oolite-asp-diffuse.png",
+					"oolite-asp-normal.png",
+					"oolite-asp-effects.png"
+				);
+				uniforms =
+				{
+					uColorMap			= { type = texture; value = 0; };
+					uNormalMap			= { type = texture; value = 1; };
+					uEffectsMap			= { type = texture; value = 2; };
+					uTime				= "timeElapsedSinceSpawn";
+					uNearlyDead			= "throwingSparks";
+					uHasHostileTarget	= "hasHostileTarget";
+					uHullHeatLevel		= "hullHeatLevel";
+					uEnginePower		= "speedFactor";
+					uPaintColor1		= { type = "randomUnitVector"; scale = 0.2; };
+					uPaintColor2		= { type = "randomUnitVector"; scale = 0.07; };
+				};
+			};
+		};
 	};
 	"asp-cloaked" =
 	{
@@ -480,12 +517,24 @@
 	{
 		like_ship = "asp";
 		forward_weapon_type = "WEAPON_PULSE_LASER";
-		max_missiles = 1;
 		roles = "player";
-		view_position_aft = "0.0 5.0 -35.0";
-		view_position_forward = "0.0 5.31 17.5";
-		view_position_port = "-27.0 5.0 0.0";
-		view_position_starboard = "27.0 5.0 0.0";
+		view_position_aft = "0.0 4.7 -39.5811";
+		view_position_forward = "0.0 2.62065 30.1318";
+		view_position_port = "-27.73195 5.75933 2.57624";
+		view_position_starboard = "27.73195 5.75933 2.57624";
+		weapon_position_aft = "0.0 1.5 -39.5811";
+		weapon_position_forward = "0.0 -2.26444 42.1456";
+		weapon_position_port = "-27.73195 7.75933 2.57624";
+		weapon_position_starboard = "-27.73195 7.75933 2.57624";
+		
+		subentities =
+		(
+			{
+				subentity_key = "oolite-asp-gun-player";
+				position = (0.0, -2.2644, 42.1456);
+			}
+		);
+		
 		custom_views =
 		(
 			{
@@ -550,6 +599,51 @@
 			}
 		);
 	};
+	
+	"oolite-asp-gun" =
+	{
+		model = "oolite-asp-gun.dat";
+		name = "Asp Mark II";
+		roles = "oolite-asp-gun";
+		forward_weapon_type = "WEAPON_BEAM_LASER";
+		weapon_position_forward = "0.0 -2.26444 42.1456";
+		max_energy = 240;
+		
+		materials =
+		{
+			"gun" =
+			{
+				// Non-shader material.
+				diffuse_map = "oolite-asp-gun-diffuse.png";
+				specular_color = (0.4, 0.4, 0.4);
+				shininess = 12;
+				
+				// Shader material.
+				vertex_shader = "oolite-tangent-space-vertex.vertex";
+				fragment_shader = "oolite-asp-gun.fragment";
+				textures =
+				(
+					"oolite-asp-gun-diffuse.png",
+					"oolite-asp-gun-normal.png"
+				);
+				uniforms =
+				{
+					uColorMap			= { type = texture; value = 0; };
+					uNormalMap			= { type = texture; value = 1; };
+					uTime				= "timeElapsedSinceSpawn";
+					uHullHeatLevel		= "hullHeatLevel";
+					uLaserHeatLevel		= "laserHeatLevel";
+				};
+			};
+		};
+	};
+	"oolite-asp-gun-player" =
+	{
+		like_ship = "oolite-asp-gun";
+		forward_weapon_type = "WEAPON_NONE";
+	};
+	
+	/**** Asteroid ****/
 	"asteroid" =
 	{
 		ai_type = "dumbAI.plist";
@@ -1532,6 +1626,13 @@
 		);
 		thrust = 100;
 		weapon_energy = 0;
+	};
+	"arc-detail" =
+	{
+		model = "arcdetail.dat";
+		name = "Arc Detail";
+		roles = "arc-detail";
+		smooth = yes;
 	};
 	dock =
 	{
