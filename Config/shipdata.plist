@@ -33,31 +33,77 @@
 		{
             "oolite-adder-diffuse.png" =
 			{
-				// Emission map used when shaders are off.
-				emission_map = { name = "oolite-adder-effects.png"; extract_channel = a; };
-				emission_modulate_color = (0.9926, 0.9686, 0.7325);
-				
-                vertex_shader = "oolite-tangent-space-vertex.vertex";
-                fragment_shader = "oolite-adder.fragment";
-                textures =
-				(
-					"oolite-adder-diffuse.png",
-					"oolite-adder-normal.png",
-					"oolite-adder-effects.png",
-				);
-				uniforms =
+				diffuse_map = "oolite-adder-diffuse.png";
+				normal_map = "oolite-adder-normal.png";
+				specular_color_map =
 				{
-					uColorMap			= { type = texture; value = 0; };
-					uNormalMap			= { type = texture; value = 1; };
-					uEffectsMap			= { type = texture; value = 2; };
-					uTime				= "timeElapsedSinceSpawn";
-					uNearlyDead			= "throwingSparks";
-					uHasHostileTarget	= "hasHostileTarget";
-					uHullHeatLevel		= "hullHeatLevel";
-					uLaserHeatLevel		= "laserHeatLevel";
-					uEnginePower		= "speedFactor";
-					uPaintColor			= { type = "randomUnitVector"; scale = 0.25; };
+					name = "oolite-adder-diffuse.png";
+					extract_channel = "a";
+					self_color = true;	// Modulate specular colour with diffuse colour.
+					scale_factor = 6;	// Multiply all channels by a constant.
 				};
+				specular_exponent = 5;
+				
+				light_map =
+				(
+					{
+						//	Light map 1: lamp/window glow map.
+						name = "oolite-adder-effects.png";
+						extract_channel = "a";
+						
+						// Base colour is yellow-white.
+						color = (0.9926, 0.9686, 0.7325);
+						
+						// Turn red (and subtract base green and blue) in combat. Ignored in simple shader mode.
+						conditional_color =
+						{
+							binding = "hasHostileTarget";
+							color = (1.5, -0.4, -0.4);
+						};
+						
+						// Flicker on and off while throwing sparks.
+						damage_flicker = true;
+					},
+					{
+						// Light map 2: cyan engine glow, full shaders only.
+						name = "oolite-adder-effects.png";
+						extract_channel = "b";
+						color = (0.4, 1.4, 1.8);
+						
+						// Intensity is controlled by speedFactor.
+						binding = { binding = "speedFactor"; clamped = true; };
+						
+						// Flicker on and off while throwing sparks.
+						damage_flicker = true;
+						
+						// Disable in simple shader mode.
+						simple_mode = false;
+					},
+					{
+						// Light map 3: orange engine heat glow, full shaders only.
+						name = "oolite-adder-effects.png";
+						extract_channel = "r";
+						color = (1.5, 0.55, 0.2);
+						
+						// Intensity is controlled by speedFactor.
+						binding = { binding = "speedFactor"; clamped = true; };
+						
+						// Disable in simple shader mode.
+						simple_mode = false;
+					},
+					{
+						// Light map 4: red laser heat glow, full shaders only.
+						name = "oolite-adder-effects.png";
+						extract_channel = "g";
+						color = (1.38, 0.35, 0.20);
+						
+						// Intensity is controlled by laser temperature.
+						binding = laserHeatLevel;
+						
+						// Disable in simple shader mode.
+						simple_mode = false;
+					}
+				);
 			};
 		};
 	};
@@ -1298,6 +1344,15 @@
 				weapon_facing = "FORWARD";
 			}
 		);
+		
+		materials =
+		{
+			"cobra3_redux.png" =
+			{
+				// TEMP: swizzle player cobra's colours so it's obvious synthesizer is active.
+				diffuse_map = { name = "cobra3_redux.png"; extract_channel = "bgr"; };
+			};
+		};
 	};
 	cobramk1 =
 	{
